@@ -63,5 +63,87 @@ class DatabaseSeeder extends Seeder
         );
 
         // TODO 8: Tambahkan minimal 2 mata kuliah lagi dengan semester berbeda, 1 mahasiswa tambahan, 2 tugas, dan contoh data submission
+
+        // Mahasiswa tambahan
+        $mahasiswa2 = User::updateOrCreate(
+            ['email' => 'mahasiswa2@celoe.test'],
+            [
+                'name' => 'Siti Nurhaliza',
+                'password' => Hash::make('mahasiswa123'),
+                'role' => 'mahasiswa',
+                'nomor_induk' => '1301210002',
+            ]
+        );
+
+        // Mata kuliah 2 (semester berbeda)
+        $course2 = MataKuliah::updateOrCreate(
+            ['kode_mk' => 'IF302'],
+            [
+                'nama_mk' => 'Basis Data Lanjut',
+                'deskripsi' => 'Membahas desain basis data relasional, normalisasi, query lanjutan, indexing, dan optimasi performa.',
+                'sks' => 3,
+                'semester' => 'Genap 2026/2027',
+                'dosen_id' => $dosen->id,
+            ]
+        );
+
+        // Mata kuliah 3 (semester berbeda lagi)
+        $course3 = MataKuliah::updateOrCreate(
+            ['kode_mk' => 'IF303'],
+            [
+                'nama_mk' => 'Rekayasa Perangkat Lunak',
+                'deskripsi' => 'Membahas siklus pengembangan perangkat lunak, analisis kebutuhan, perancangan UML, dan pengujian.',
+                'sks' => 3,
+                'semester' => 'Ganjil 2027/2028',
+                'dosen_id' => $dosen->id,
+            ]
+        );
+
+        // Daftarkan mahasiswa ke mata kuliah
+        $course1->students()->syncWithoutDetaching([
+            $mahasiswa2->id => ['status' => 'approved'],
+        ]);
+        $course2->students()->syncWithoutDetaching([
+            $mahasiswa1->id => ['status' => 'approved'],
+            $mahasiswa2->id => ['status' => 'approved'],
+        ]);
+
+        // Tugas
+        $assignment1 = Assignment::updateOrCreate(
+            ['course_id' => $course1->id, 'judul' => 'Membuat CRUD Sederhana dengan Laravel'],
+            [
+                'deskripsi' => 'Buat aplikasi CRUD data mahasiswa menggunakan Laravel, Eloquent ORM, dan Blade Template.',
+                'deadline' => now()->addDays(7),
+            ]
+        );
+
+        $assignment2 = Assignment::updateOrCreate(
+            ['course_id' => $course2->id, 'judul' => 'Normalisasi Database Sistem Akademik'],
+            [
+                'deskripsi' => 'Lakukan normalisasi hingga 3NF pada rancangan database sistem akademik dan buat ERD-nya.',
+                'deadline' => now()->addDays(14),
+            ]
+        );
+
+        // Contoh submission: satu sudah dinilai, satu belum
+        Submission::updateOrCreate(
+            ['assignment_id' => $assignment1->id, 'user_id' => $mahasiswa1->id],
+            [
+                'jawaban' => 'Aplikasi CRUD sudah selesai dibuat, source code ada di repository GitHub terlampir.',
+                'submitted_at' => now()->subDays(1),
+                'nilai' => 90,
+                'catatan_dosen' => 'Bagus, struktur kode rapi. Tambahkan validasi input pada form.',
+            ]
+        );
+
+        Submission::updateOrCreate(
+            ['assignment_id' => $assignment1->id, 'user_id' => $mahasiswa2->id],
+            [
+                'jawaban' => 'Berikut hasil pengerjaan CRUD mahasiswa beserta screenshot tampilan aplikasi.',
+                'submitted_at' => now(),
+                'nilai' => null,
+                'catatan_dosen' => null,
+            ]
+        );
     }
 }

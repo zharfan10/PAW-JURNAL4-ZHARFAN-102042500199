@@ -10,6 +10,8 @@
 </div>
 
 @php
+    $totalStudents = $students->count();
+    $totalSubmitted = $submissions->count();
     $gradedSubmissions = $submissions->whereNotNull('nilai');
     $averageScore = $gradedSubmissions->count() > 0 ? round($gradedSubmissions->avg('nilai'), 1) : null;
 @endphp
@@ -35,7 +37,10 @@
 
         <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
             
-            {{-- TODO 7b: Tambahkan tombol Export CSV yang mengarah ke route('assignments.export-csv', $assignment) --}}
+            {{-- TODO 7b: Tambahkan tombol Export CSV --}}
+            <a href="{{ route('assignments.export-csv', $assignment->id) }}" class="btn btn-success btn-sm">
+                📥 Export ke CSV
+            </a>
 
             <a href="{{ route('assignments.edit', $assignment->id) }}" class="btn btn-secondary btn-sm">
                 Edit Tugas
@@ -49,14 +54,27 @@
     </div>
 </div>
 
-<!-- Statistik Pengumpulan & Nilai -->
-{{-- TODO 7a: Tampilkan kartu ringkasan Total Mahasiswa, Jumlah Mengumpulkan, dan Rata-rata Nilai --}}
+<!-- Statistik Pengumpulan & Nilai (TODO 7a) -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="margin-bottom: 0; padding: 1rem 1.25rem;">
+        <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">TOTAL MAHASISWA</div>
+        <div style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-top: 0.25rem;">{{ $totalStudents }}</div>
+    </div>
+    <div class="card" style="margin-bottom: 0; padding: 1rem 1.25rem;">
+        <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">SUDAH MENGUMPULKAN</div>
+        <div style="font-size: 1.5rem; font-weight: 700; color: #059669; margin-top: 0.25rem;">{{ $totalSubmitted }} <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-muted);">/ {{ $totalStudents }}</span></div>
+    </div>
+    <div class="card" style="margin-bottom: 0; padding: 1rem 1.25rem;">
+        <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">RATA-RATA NILAI KELAS</div>
+        <div style="font-size: 1.5rem; font-weight: 700; color: #2563eb; margin-top: 0.25rem;">{{ $averageScore !== null ? $averageScore : 'Belum Ada' }}</div>
+    </div>
+</div>
 
 <!-- Daftar Pengumpulan Mahasiswa -->
 <div class="card">
     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
         <div>
-            <h2 class="card-title" style="font-size: 1.1rem;">Rekapitulasi Pengumpulan &amp; Penilaian Mahasiswa</h2>
+            <h2 class="card-title" style="font-size: 1.1rem;">Rekapitulasi Pengumpulan & Penilaian Mahasiswa</h2>
             <p class="card-subtitle">Semua mahasiswa yang terdaftar resmi di kelas mata kuliah ini</p>
         </div>
     </div>
@@ -75,7 +93,7 @@
                             <th style="width: 45px;">No</th>
                             <th>Mahasiswa</th>
                             <th style="width: 130px;">NIM</th>
-                            <th style="width: 160px;">Status &amp; Waktu</th>
+                            <th style="width: 160px;">Status & Waktu</th>
                             <th>Jawaban Teks</th>
                             <th style="min-width: 280px;">Penilaian Dosen</th>
                         </tr>
@@ -129,10 +147,34 @@
                                 </td>
                                 <td>
                                     @if($sub)
-                                        {{-- TODO 7c: Tambahkan form PATCH untuk input nilai (0-100) dan catatan_dosen pada setiap mahasiswa yang sudah mengumpulkan --}}
-                                        <span style="font-size: 0.8rem; color: var(--text-muted);">Form penilaian belum diimplementasikan</span>
+                                        {{-- TODO 7c: Form PATCH untuk input nilai dan catatan dosen --}}
+                                        <form action="{{ route('submissions.grade', $sub->id) }}" method="POST" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                            @csrf
+                                            @method('PATCH')
+                                            <div style="display: flex; gap: 0.5rem;">
+                                                <input 
+                                                    type="number" 
+                                                    name="nilai" 
+                                                    class="form-control" 
+                                                    placeholder="Nilai (0-100)" 
+                                                    value="{{ old('nilai', $sub->nilai) }}" 
+                                                    min="0" 
+                                                    max="100" 
+                                                    required 
+                                                    style="width: 110px; font-size: 0.85rem; padding: 0.35rem 0.5rem;"
+                                                >
+                                                <button type="submit" class="btn btn-primary btn-sm" style="flex: 1; font-size: 0.85rem;">Simpan Nilai</button>
+                                            </div>
+                                            <textarea 
+                                                name="catatan_dosen" 
+                                                class="form-control" 
+                                                placeholder="Catatan / feedback untuk mahasiswa (opsional)..." 
+                                                rows="2" 
+                                                style="font-size: 0.85rem; padding: 0.35rem 0.5rem;"
+                                            >{{ old('catatan_dosen', $sub->catatan_dosen) }}</textarea>
+                                        </form>
                                     @else
-                                        <span style="font-size: 0.8rem; color: var(--text-muted);">&mdash;</span>
+                                        <span style="font-size: 0.8rem; color: var(--text-muted);">—</span>
                                     @endif
                                 </td>
                             </tr>

@@ -56,21 +56,91 @@ class SubmissionController extends Controller
 
     public function grade(Request $request, Submission $submission): RedirectResponse
     {
-        // TODO 5a (grade): Cek apakah dosen adalah pengampu mata kuliah, validasi nilai (0-100) & catatan_dosen, lalu update submission.
-        // 1. Pastikan $submission->assignment->course->dosen_id === Auth::id(), jika tidak abort(403).
-        // 2. Validasi input 'nilai' (required|integer|min:0|max:100) dan 'catatan_dosen' (nullable|string|max:1000).
-        // 3. Simpan perubahan menggunakan $submission->update(...) dan redirect back() dengan pesan sukses.
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
 
-        abort(501, 'Fitur belum diimplementasikan');
+        // 1. Pastikan dosen yang login adalah pengampu mata kuliah dari tugas ini
+        if ($submission->assignment->course->dosen_id !== Auth::id()) {
+            abort(403, 'Akses ditolak. Anda bukan dosen pengampu mata kuliah ini.');
+        }
+
+        // 2. Validasi input nilai dan catatan dosen
+        $validated = $request->validate([
+            'nilai' => ['required', 'integer', 'min:0', 'max:100'],
+            'catatan_dosen' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'nilai.required' => 'Nilai wajib diisi.',
+            'nilai.integer' => 'Nilai harus berupa angka.',
+            'nilai.min' => 'Nilai minimal adalah 0.',
+            'nilai.max' => 'Nilai maksimal adalah 100.',
+            'catatan_dosen.max' => 'Catatan dosen maksimal 1000 karakter.',
+        ]);
+
+        // 3. Update data submission dengan nilai dan catatan dosen
+        $submission->update([
+            'nilai' => $validated['nilai'],
+            'catatan_dosen' => $validated['catatan_dosen'] ?? null,
+        ]);
+
+        return back()->with('success', 'Nilai tugas mahasiswa berhasil disimpan.');
     }
 
     public function exportCsv(Assignment $assignment): StreamedResponse
     {
-        // TODO 5b (exportCsv): Cek kepemilikan dosen, lalu gunakan response()->streamDownload() dan fputcsv() untuk mengunduh data nilai mahasiswa.
-        // 1. Pastikan $assignment->course->dosen_id === Auth::id(), jika tidak abort(403).
-        // 2. Muat relasi course.approvedStudents dan submissions dari $assignment.
-        // 3. Kembalikan response()->streamDownload(...) yang menulis header & baris CSV menggunakan fopen('php://output', 'w') dan fputcsv().
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
 
-        abort(501, 'Fitur belum diimplementasikan');
+        // 1. Pastikan dosen yang login adalah pengampu mata kuliah tugas ini
+        if ($assignment->course->dosen_id !== Auth::id()) {
+            abort(403, 'Akses ditolak. Anda bukan dosen pengampu mata kuliah ini.');
+        }
+
+        // 2. Muat relasi mahasiswa yang disetujui (approvedStudents) dan data submissions milik assignment ini
+        $assignment->load(['course.approvedStudents', 'submissions']);
+
+        $fileName = 'rekap_nilai_' . str_slug($assignment->judul) . '_' . date('Y-m-d') . '.csv';
+
+        // 3. Kembalikan response stream download untuk file CSV
+        return response()->streamDownload(function () use ($assignment) {
+            $file = fopen('php://output', 'w');
+
+            // Tulis Header Kolom CSV
+            fputcsv($file, ['No', 'Nomor Induk', 'Nama Mahasiswa', 'Status Kumpul', 'Waktu Kumpul', 'Nilai', 'Status Kelulusan', 'Catatan Dosen']);
+
+            $students = $assignment->course->approvedStudents;
+            foreach ($students as $index => $student) {
+                $submission = $assignment->submissions->where('user_id', $student->id)->first();
+
+                $statusKumpul = $submission ? 'Sudah Mengumpulkan' : 'Belum Mengumpulkan';
+                $waktuKumpul = $submission && $submission->submitted_at ? $submission->submitted_at : '-';
+                $nilai = $submission && !is_null($submission->nilai) ? $submission->nilai : 'Belum Dinilai';
+                
+                // Menentukan status kelulusan (Lulus jika nilai >= 70, Remedial jika ada nilai < 70, Belum Dinilai jika kosong)
+                if (!$submission || is_null($submission->nilai)) {
+                    $statusKelulusan = 'Belum Dinilai';
+                } else {
+                    $statusKelulusan = $submission->nilai >= 70 ? 'Lulus' : 'Remedial';
+                }
+
+                $catatan = $submission && $submission->catatan_dosen ? $submission->catatan_dosen : '-';
+
+                fputcsv($file, [
+                    $index + 1,
+                    $student->nomor_induk ?? '-',
+                    $student->name,
+                    $statusKumpul,
+                    $waktuKumpul,
+                    $nilai,
+                    $statusKelulusan,
+                    $catatan,
+                ]);
+            }
+
+            fclose($file);
+        }, $fileName, [
+            'Content-Type' => 'text/csv',
+        ]);
     }
 }

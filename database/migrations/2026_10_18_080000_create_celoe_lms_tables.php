@@ -70,7 +70,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Hanya menghapus tabel CeLOE baru dalam urutan relasi terbalik
         Schema::dropIfExists('submissions');
         Schema::dropIfExists('assignments');
         Schema::dropIfExists('materials');
