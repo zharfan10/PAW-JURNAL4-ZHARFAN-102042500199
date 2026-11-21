@@ -4,42 +4,43 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Submission extends Model
 {
     use HasFactory;
 
+    // TODO 2: Tambahkan 'nilai' dan 'catatan_dosen' ke $fillable, serta lengkapi logika status nilai ('Belum Dinilai', 'Lulus' >= 70, 'Perlu Perbaikan')
     protected $fillable = [
-        'tugas_id',
+        'assignment_id',
         'user_id',
-        'file_path',
         'nilai',
         'catatan_dosen',
+        'jawaban',
+        'submitted_at',
     ];
 
-    // Relasi ke Tugas
-    public function tugas()
+    protected $casts = [
+        'nilai' => 'integer',
+        'submitted_at' => 'datetime',
+    ];
+
+    public function assignment(): BelongsTo
     {
-        return $this->belongsTo(Tugas::class);
+        return $this->belongsTo(Assignment::class);
     }
 
-    // Relasi ke User (Mahasiswa)
-    public function mahasiswa()
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class);
     }
 
-    // KOREKSI: Tambahkan 'return' pada pengecekan is_null()
-    protected function statusKelulusan(): Attribute
+    public function getStatusNilaiAttribute(): string
     {
-        return Attribute::make(
-            get: function () {
-                if (is_null($this->nilai)) {
-                    return 'Belum Dinilai'; // <-- Sebelumnya kurang kata 'return'
-                }
-                return $this->nilai >= 70 ? 'Lulus' : 'Remedial';
-            }
-        );
+        // TODO 2: Lengkapi logika status nilai ('Belum Dinilai' jika null, 'Lulus' jika >= 70, selain itu 'Perlu Perbaikan')
+        if ($this->nilai === null) {
+            return 'Belum Dinilai';
+        }
+        return $this->nilai >= 70 ? 'Lulus' : 'Perlu Perbaikan';
     }
 }
